@@ -20,6 +20,10 @@ ipch/
 /src/packages/**
 !/src/packages/repositories.config
 !/src/packages/NuGet.exe
+.paket/Paket.Restore.targets
+src/paket-files/*
+src/.paket/Paket.Restore.targets
+
 out/
 src/.paket/paket.exe
 src/.fake/

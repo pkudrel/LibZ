@@ -22,6 +22,7 @@ ipch/
 !/src/packages/NuGet.exe
 .paket/Paket.Restore.targets
 src/paket-files/*
+src/tools/*
 src/.paket/Paket.Restore.targets
 
 out/

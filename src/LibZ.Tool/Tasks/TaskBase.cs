@@ -310,9 +310,62 @@ namespace LibZ.Tool.Tasks
 			return true;
 		}
 
-		/// <summary>Instruments assembly with AsmZ resolver.</summary>
-		/// <param name="targetAssembly">The target assembly.</param>
-		protected static void InstrumentAsmZ(AssemblyDefinition targetAssembly)
+
+	    /// <summary>
+	    /// 
+	    /// </summary>
+	    /// <param name="targetAssembly"></param>
+	    /// <param name="schema"></param>
+	    /// <param name="name"></param>
+	    /// <param name="sourceAssemblyBytes"></param>
+	    /// <param name="overwrite"></param>
+	    /// <returns></returns>
+	    protected static bool InjectAsResources(
+	        AssemblyDefinition targetAssembly, 
+            string schema,
+	        string name,
+	        byte[] sourceAssemblyBytes,
+	        bool overwrite)
+	    {
+
+
+
+
+	        var resourceName = $"{schema}://{name}";
+
+	        var existing = targetAssembly.MainModule.Resources
+	            .Where(r => r.Name == name)
+	            .ToArray();
+
+	        if (existing.Length > 0)
+	        {
+	            if (overwrite)
+	            {
+	                Log.Warn("Resource '{0}' already exists and is going to be replaced.", resourceName);
+	                foreach (var r in existing)
+	                    targetAssembly.MainModule.Resources.Remove(r);
+	            }
+	            else
+	            {
+	                Log.Warn("Resource '{0}' already exists and will be skipped.", resourceName);
+	                return false;
+	            }
+	        }
+
+	        var resource = new EmbeddedResource(
+	            resourceName,
+	            ManifestResourceAttributes.Public,
+	            sourceAssemblyBytes);
+
+	        targetAssembly.MainModule.Resources.Add(resource);
+
+	        return true;
+	    }
+
+
+        /// <summary>Instruments assembly with AsmZ resolver.</summary>
+        /// <param name="targetAssembly">The target assembly.</param>
+        protected static void InstrumentAsmZ(AssemblyDefinition targetAssembly)
 		{
 			var helper = new InstrumentHelper(targetAssembly);
 			helper.InjectLibZInitializer();

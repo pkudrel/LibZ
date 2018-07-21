@@ -50,6 +50,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Text;
 using System.Xml.Linq;
 using LibZ.Msil;
 using NLog;
@@ -104,20 +105,34 @@ namespace LibZ.Tool.Tasks
                         var doc = XDocument.Load(appConfigFile);
                         var txt = doc.Descendants().FirstOrDefault(p => p.Name.LocalName == "assemblyBinding")
                             ?.ToString();
+                        if (string.IsNullOrEmpty(txt) == false)
+                        {
+
+                            Log.Debug(txt);
+                            byte[] bytes = Encoding.UTF8.GetBytes(txt);
+                            var added = InjectAsResources(assembly, "assemblyBinding", appConfigFile, bytes,
+                                overwrite);
+                            Log.Debug(added
+                                ? $"Resource '{appConfigFile}' added"
+                                : $"Resource '{appConfigFile}' not added");
+                        }
+
                     }
 
                 foreach (var fileName in FindFiles(includePatterns, excludePatterns))
                 {
-                    var sourceAssembly = MsilUtilities.LoadAssembly(fileName);
-                    if (sourceAssembly == null)
+                    using (var sourceAssembly = MsilUtilities.LoadAssembly(fileName))
                     {
-                        Log.Error("Assembly '{0}' could not be loaded", fileName);
-                        continue;
-                    }
+                        if (sourceAssembly == null)
+                        {
+                            Log.Error("Assembly '{0}' could not be loaded", fileName);
+                            continue;
+                        }
 
-                    Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
-                    if (!InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite))
-                        continue;
+                        Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
+                        if (!InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite))
+                            continue;
+                    }
 
                     injectedFileNames.Add(fileName);
                 }

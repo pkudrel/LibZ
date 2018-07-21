@@ -59,10 +59,18 @@
     <Compile Include="XmlTests\SimpleTest.cs" />
   </ItemGroup>
   <ItemGroup>
+    <None Include="BuildTests\BuildSimpleProject.ps1" />
+    <None Include="BuildTests\in\PkApp.exe.config" />
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Analyzer Include="..\packages\xunit.analyzers.0.10.0\analyzers\dotnet\cs\xunit.analyzers.dll" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="BuildTests\in\PkApp.exe" />
+    <Content Include="BuildTests\in\PkApp.pdb" />
+    <Content Include="BuildTests\in\PkLib.dll" />
+    <Content Include="BuildTests\in\PkLib.pdb" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">

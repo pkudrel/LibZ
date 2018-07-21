@@ -101,6 +101,9 @@ namespace LibZ.Injected
 		/// <summary>The loaded assemblies cache.</summary>
 		private static readonly Dictionary<Guid, Assembly> LoadedAssemblies = 
 			new Dictionary<Guid, Assembly>();
+        
+	    /// <summary>The loaded assemblies cache.</summary>
+		private static readonly Dictionary<string, DependentAssembly> AssemblyBindings = new Dictionary<string, DependentAssembly>();
 
 		/// <summary>Flag indicating if Trace should be used.</summary>
 		private static readonly bool UseTrace;
@@ -110,11 +113,14 @@ namespace LibZ.Injected
 		/// <summary>Initializes the <see cref="AsmZResolver"/> class.</summary>
 		static AsmZResolver()
 		{
-			var value =
+
+		    
+            var value =
 				SafeGetRegistryDWORD(false, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
 					SafeGetRegistryDWORD(true, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
 						0;
-			UseTrace = value != 0;
+			//UseTrace = value != 0;
+			UseTrace = true;
 		}
 
 
@@ -128,7 +134,15 @@ namespace LibZ.Injected
 
 			foreach (var rn in ThisAssembly.GetManifestResourceNames())
 			{
-				var m = ResourceNameRx.Match(rn);
+			    Info($"Name: {rn}");
+
+			    if (rn.StartsWith("assemblyBinding:"))
+			    {
+			        ProcessAssemblyBinding(rn);
+                    continue;
+			    }
+
+               var m = ResourceNameRx.Match(rn);
 				if (!m.Success) continue;
 				var guid = new Guid(m.Groups["guid"].Value);
 				if (ResourceNames.ContainsKey(guid))
@@ -144,7 +158,37 @@ namespace LibZ.Injected
 			AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolver;
 		}
 
-		#endregion
+	    private static void ProcessAssemblyBinding(string resourceName)
+	    {
+
+
+	        using (var stream = ThisAssembly.GetManifestResourceStream(resourceName))
+	        {
+	            if (stream == null) return;
+	            byte[] buffer = new byte[stream.Length];
+	            stream.Read(buffer, 0, buffer.Length);
+	            string result = System.Text.Encoding.UTF8.GetString(buffer);
+	            Info($"result: {result}");
+	            var dp = DependentAssemblyParser.Parse(result);
+	            Info($"items: {dp.Count}");
+                try
+	            {
+	               
+                }
+	            catch (Exception e)
+	            {
+	                Info($"result: {e.Message}");
+                }
+
+	         
+                //AssemblyBindings
+
+
+            }
+
+        }
+
+	    #endregion
 
 		#region private implementation
 
@@ -318,12 +362,76 @@ namespace LibZ.Injected
 				Trace.TraceWarning("WARN (AsmZ/{0}) {1}", ThisAssemblyName, message);
 		}
 
-		private static void Error(string message)
+
+	    private static void  Info(string message)
+	    {
+	        if (message != null)
+	            Trace.TraceInformation("INFO (AsmZ/{0}) {1}", ThisAssemblyName, message);
+	    }
+
+        private static void Error(string message)
 		{
 			if (message != null && UseTrace)
 				Trace.TraceError("ERROR (AsmZ/{0}) {1}", ThisAssemblyName, message);
 		}
 
 		#endregion
+
+
+        internal static class DependentAssemblyParser
+        {
+            public static List<DependentAssembly> Parse(string t)
+            {
+                var pos = 0;
+
+                var list = new List<DependentAssembly>();
+                while (true)
+                {
+                    var start = t.IndexOf("<dependentAssembly>", pos, StringComparison.Ordinal);
+                    if (start < 0) break;
+                    var name = GetValue(t, "name", start);
+                    var publicKeyToken = GetValue(t, "publicKeyToken", start);
+                    var culture = GetValue(t, "culture", start);
+                    var oldVersion = GetValue(t, "oldVersion", start);
+                    var newVersion = GetValue(t, "newVersion", start);
+                    var record = new DependentAssembly(name, publicKeyToken, culture, oldVersion, newVersion);
+                    list.Add(record);
+                    var end = t.IndexOf("</dependentAssembly>", start, StringComparison.Ordinal);
+                    if (end < 0) break;
+                    pos = end;
+                }
+
+                return list;
+            }
+            private static string GetValue(string txt, string name, int start)
+            {
+                var posToken = txt.IndexOf(name, start, StringComparison.OrdinalIgnoreCase);
+                if (posToken < 0) return string.Empty;
+                var posStart = txt.IndexOf("\"", posToken, StringComparison.OrdinalIgnoreCase);
+                if (posStart < 0) return string.Empty;
+                posStart++;
+                var posEnd = txt.IndexOf("\"", posStart, StringComparison.OrdinalIgnoreCase);
+                var ret = txt.Substring(posStart, posEnd - posStart);
+                return ret;
+            }
+        }
+
+        internal class DependentAssembly
+        {
+            public DependentAssembly(string name, string publicKeyToken, string culture, string oldVersion, string newVersion)
+            {
+                Name = name;
+                PublicKeyToken = publicKeyToken;
+                Culture = culture;
+                OldVersion = oldVersion;
+                NewVersion = newVersion;
+            }
+
+            public string Name { get; set; }
+            public string PublicKeyToken { get; set; }
+            public string Culture { get; set; }
+            public string OldVersion { get; set; }  
+            public string NewVersion { get; set; }
+        }
 	}
 }

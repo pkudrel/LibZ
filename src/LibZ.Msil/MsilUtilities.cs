@@ -358,7 +358,8 @@ namespace LibZ.Msil
 
 	    public static void ReplaceMainFile(string mainFileName, string tempFileName)
 	    {
-	        try
+	        Log.Debug($"Replace '{mainFileName}' with '{tempFileName}'");
+            try
 	        {
 	            if (!File.Exists(tempFileName)) return;
 	            File.Delete(mainFileName);

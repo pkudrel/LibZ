@@ -434,8 +434,7 @@ namespace LibZ.Tool.InjectIL
 
 			foreach (var sourceVariable in sourceMethod.Body.Variables)
 			{
-				var targetVariable = new VariableDefinition(
-					sourceVariable.Name, Resolve(sourceVariable.VariableType));
+				var targetVariable = new VariableDefinition( Resolve(sourceVariable.VariableType));
 				targetMethod.Body.Variables.Add(targetVariable);
 			}
 

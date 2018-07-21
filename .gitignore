@@ -28,3 +28,4 @@ src/.paket/Paket.Restore.targets
 out/
 src/.paket/paket.exe
 src/.fake/
+src/.vs/*

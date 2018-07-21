@@ -88,7 +88,7 @@ namespace LibZ.Codec.LZ4
 		/// <returns>Decoded data.</returns>
 		public byte[] Decode(byte[] inputData, int outputLength)
 		{
-			return global::LZ4.LZ4Codec.Decode(inputData, 0, inputData.Length, outputLength);
+			return global:: LZ4.LZ4Codec.Decode(inputData, 0, inputData.Length, outputLength);
 		}
 
 		#endregion

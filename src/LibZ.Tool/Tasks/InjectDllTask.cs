@@ -65,23 +65,23 @@ namespace LibZ.Tool.Tasks
 
 		#endregion
 
-		/// <summary>Executes the task.</summary>
-		/// <param name="mainFileName">Name of the main file.</param>
-		/// <param name="includePatterns">The include patterns.</param>
-		/// <param name="excludePatterns">The exclude patterns.</param>
-		/// <param name="keyFileName">Name of the key file.</param>
-		/// <param name="keyFilePassword">The key file password.</param>
-		/// <param name="overwrite">
-		///     if set to <c>true</c> overwrites .dll already embedded.
-		/// </param>
-		/// <param name="move">
-		///     if set to <c>true</c> moves assembly (deletes source files).
-		/// </param>
-		public virtual void Execute(
-			string mainFileName,
-			string[] includePatterns, string[] excludePatterns,
-			string keyFileName, string keyFilePassword,
-			bool overwrite, bool move)
+	    /// <summary>Executes the task.</summary>
+	    /// <param name="mainFileName">Name of the main file.</param>
+	    /// <param name="includePatterns">The include patterns.</param>
+	    /// <param name="excludePatterns">The exclude patterns.</param>
+	    /// <param name="keyFileName">Name of the key file.</param>
+	    /// <param name="keyFilePassword">The key file password.</param>
+	    /// <param name="overwrite">
+	    /// if set to <c>true</c> overwrites .dll already embedded.
+	    /// </param>
+	    /// <param name="move">
+	    /// if set to <c>true</c> moves assembly (deletes source files).
+	    /// </param>
+	    /// <param name="appConfigFile"></param>
+	    public virtual void Execute(string mainFileName,
+	        string[] includePatterns, string[] excludePatterns,
+	        string keyFileName, string keyFilePassword,
+	        bool overwrite, bool move, string appConfigFile)
 		{
 			if (!File.Exists(mainFileName))
 				throw FileNotFound(mainFileName);

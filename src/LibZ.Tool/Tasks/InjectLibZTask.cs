@@ -46,6 +46,7 @@
 
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.IO;
 using LibZ.Msil;
@@ -78,42 +79,46 @@ namespace LibZ.Tool.Tasks
 			bool move)
 		{
 			var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
-			var assembly = MsilUtilities.LoadAssembly(mainFileName);
-			var injectedFileNames = new List<string>();
+		    var tempFileName = $"{mainFileName}.{Guid.NewGuid():N}";
+            using (var assembly = MsilUtilities.LoadAssembly(mainFileName))
+		    {
+		        var injectedFileNames = new List<string>();
 
-			// TODO:MAK exclude?
-			foreach (var libzFileName in FindFiles(libzFileNames))
-			{
-				if (libzFileName == null)
-					throw ArgumentNull("libzFileName");
-				if (!File.Exists(libzFileName))
-					throw FileNotFound(libzFileName);
-				if (!File.Exists(mainFileName))
-					throw FileNotFound(mainFileName);
+		        // TODO:MAK exclude?
+		        foreach (var libzFileName in FindFiles(libzFileNames))
+		        {
+		            if (libzFileName == null)
+		                throw ArgumentNull("libzFileName");
+		            if (!File.Exists(libzFileName))
+		                throw FileNotFound(libzFileName);
+		            if (!File.Exists(mainFileName))
+		                throw FileNotFound(mainFileName);
 
-				var fileName = Path.GetFileName(libzFileName); // TODO:MAK relative path?
+		            var fileName = Path.GetFileName(libzFileName); // TODO:MAK relative path?
 
-				var resourceName = "libz://" + HashString(fileName);
-				var resource = new EmbeddedResource(
-					resourceName,
-					ManifestResourceAttributes.Public,
-					File.ReadAllBytes(libzFileName));
-				assembly.MainModule.Resources.Add(resource);
-				Log.Info("Injecting '{0}' into '{1}'", libzFileName, mainFileName);
-				injectedFileNames.Add(libzFileName);
-			}
+		            var resourceName = "libz://" + HashString(fileName);
+		            var resource = new EmbeddedResource(
+		                resourceName,
+		                ManifestResourceAttributes.Public,
+		                File.ReadAllBytes(libzFileName));
+		            assembly.MainModule.Resources.Add(resource);
+		            Log.Info("Injecting '{0}' into '{1}'", libzFileName, mainFileName);
+		            injectedFileNames.Add(libzFileName);
+		        }
 
-			if (injectedFileNames.Count <= 0)
-			{
-				Log.Warn("No files injected: {0}", string.Join(", ", libzFileNames));
-			}
-			else
-			{
-				MsilUtilities.SaveAssembly(assembly, mainFileName, keyPair);
-				if (move)
-					foreach (var fn in injectedFileNames)
-						DeleteFile(fn);
-			}
-		}
+		        if (injectedFileNames.Count <= 0)
+		        {
+		            Log.Warn("No files injected: {0}", string.Join(", ", libzFileNames));
+		        }
+		        else
+		        {
+		            MsilUtilities.SaveAssemblyToTmp(assembly, tempFileName, keyPair);
+		            if (move)
+		                foreach (var fn in injectedFileNames)
+		                    DeleteFile(fn);
+		        }
+		    }
+		    MsilUtilities.ReplaceMainFile(mainFileName, tempFileName);
+        }
 	}
 }

@@ -100,47 +100,50 @@ namespace LibZ.Tool.Tasks
 				libzFiles = new string[0];
 			if (libzPatterns == null)
 				libzPatterns = new string[0];
-
-			var targetAssembly = MsilUtilities.LoadAssembly(mainFileName);
-			ValidateLibZInstrumentation(targetAssembly);
+		    var tempFileName = $"{mainFileName}.{Guid.NewGuid():N}";
+            using (var targetAssembly = MsilUtilities.LoadAssembly(mainFileName))
+		    {
+		        ValidateLibZInstrumentation(targetAssembly);
 			
-			var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
-			var requiresAsmZResolver = false;
+		        var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
+		        var requiresAsmZResolver = false;
 
-			var bootstrapAssembly =
-				FindBootstrapAssembly(targetAssembly, mainFileName);
+		        var bootstrapAssembly =
+		            FindBootstrapAssembly(targetAssembly, mainFileName);
 
-			if (bootstrapAssembly == null)
-			{
-				var version = MsilUtilities.GetFrameworkVersion(targetAssembly);
+		        if (bootstrapAssembly == null)
+		        {
+		            var version = MsilUtilities.GetFrameworkVersion(targetAssembly);
 
-				var bootstrapAssemblyImage = InstrumentHelper.GetBootstrapAssemblyImage(version);
-				bootstrapAssembly = MsilUtilities.LoadAssembly(bootstrapAssemblyImage);
+		            var bootstrapAssemblyImage = InstrumentHelper.GetBootstrapAssemblyImage(version);
+		            bootstrapAssembly = MsilUtilities.LoadAssembly(bootstrapAssemblyImage);
 
-				if (bootstrapAssembly == null)
-					throw new ArgumentException("LibZ.Bootstrap has not been found");
+		            if (bootstrapAssembly == null)
+		                throw new ArgumentException("LibZ.Bootstrap has not been found");
 
-				Log.Info("Using built in LibZResolver");
+		            Log.Info("Using built in LibZResolver");
 
-				InjectDll(
-					targetAssembly,
-					bootstrapAssembly,
-					bootstrapAssemblyImage,
-					true);
-				requiresAsmZResolver = true;
-			}
+		            InjectDll(
+		                targetAssembly,
+		                bootstrapAssembly,
+		                bootstrapAssemblyImage,
+		                true);
+		            requiresAsmZResolver = true;
+		        }
 
-			_instrumentHelper = new InstrumentHelper(
-				targetAssembly,
-				bootstrapAssembly);
+		        _instrumentHelper = new InstrumentHelper(
+		            targetAssembly,
+		            bootstrapAssembly);
 
-			_instrumentHelper.InjectLibZInitializer();
-			if (requiresAsmZResolver)
-				_instrumentHelper.InjectAsmZResolver();
-			_instrumentHelper.InjectLibZStartup(allLibZResources, libzFiles, libzPatterns);
+		        _instrumentHelper.InjectLibZInitializer();
+		        if (requiresAsmZResolver)
+		            _instrumentHelper.InjectAsmZResolver();
+		        _instrumentHelper.InjectLibZStartup(allLibZResources, libzFiles, libzPatterns);
 
-			MsilUtilities.SaveAssembly(targetAssembly, mainFileName, keyPair);
-		}
+		        MsilUtilities.SaveAssemblyToTmp(targetAssembly, tempFileName, keyPair);
+		    }
+		    MsilUtilities.ReplaceMainFile(mainFileName, tempFileName);
+        }
 
 		#endregion
 

@@ -50,8 +50,10 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
+using System.Threading.Tasks;
 using Mono.Cecil;
 using NLog;
 
@@ -121,13 +123,27 @@ namespace LibZ.Msil
 			}
 			return keyPair;
 		}
+	    public static bool IsFileLocked2(string filePath)
+	    {
+	        try
+	        {
+	            using (File.Open(filePath, FileMode.Open)) { }
+	        }
+	        catch (IOException e)
+	        {
+	            var errorCode = Marshal.GetHRForException(e) & ((1 << 16) - 1);
 
-		/// <summary>Gets the strong name key pair from PFX.</summary>
-		/// <param name="pfxFile">The PFX file.</param>
-		/// <param name="password">The password.</param>
-		/// <returns>Key pair.</returns>
-		/// <exception cref="System.ArgumentException">pfxFile</exception>
-		public static StrongNameKeyPair GetStrongNameKeyPairFromPfx(string pfxFile, string password)
+	            return errorCode == 32 || errorCode == 33;
+	        }
+
+	        return false;
+	    }
+        /// <summary>Gets the strong name key pair from PFX.</summary>
+        /// <param name="pfxFile">The PFX file.</param>
+        /// <param name="password">The password.</param>
+        /// <returns>Key pair.</returns>
+        /// <exception cref="System.ArgumentException">pfxFile</exception>
+        public static StrongNameKeyPair GetStrongNameKeyPairFromPfx(string pfxFile, string password)
 		{
 			// http://stackoverflow.com/questions/7556846/how-to-use-strongnamekeypair-with-a-password-protected-keyfile-pfx
 
@@ -192,14 +208,14 @@ namespace LibZ.Msil
 			AssemblyDefinition assembly, string assemblyFileName,
 			StrongNameKeyPair keyPair = null)
 		{
-			var tempFileName = String.Format("{0}.{1:N}", assemblyFileName, Guid.NewGuid());
+			var tempFileName = $"{assemblyFileName}.{Guid.NewGuid():N}";
 
 			try
 			{
 				if (keyPair == null)
 				{
 					Log.Debug("Saving '{0}'", assemblyFileName);
-					assembly.Write(tempFileName);
+				    assembly.Write(tempFileName);
 				}
 				else
 				{
@@ -224,11 +240,48 @@ namespace LibZ.Msil
 			}
 		}
 
-		/// <summary>Compares assembly names.</summary>
-		/// <param name="valueA">The value A.</param>
-		/// <param name="valueB">The value B.</param>
-		/// <returns><c>true</c> if assembly names are equal.</returns>
-		public static bool EqualAssemblyNames(string valueA, string valueB)
+
+        /// <summary>Saves the assembly.</summary>
+        /// <param name="assembly">The assembly.</param>
+        /// <param name="assemblyTmpFileName">Name of the assembly tmp file.</param>
+        /// <param name="keyPair">The key pair.</param>
+        public static void SaveAssemblyToTmp(
+	        AssemblyDefinition assembly, string assemblyTmpFileName,
+	        StrongNameKeyPair keyPair = null)
+	    {
+	       
+	        try
+	        {
+	            if (keyPair == null)
+	            {
+	                Log.Debug("Saving '{0}'", assemblyTmpFileName);
+	                assembly.Write(assemblyTmpFileName);
+	            }
+	            else
+	            {
+	                Log.Debug("Saving and signing '{0}'", assemblyTmpFileName);
+	                assembly.Write(assemblyTmpFileName, new WriterParameters { StrongNameKeyPair = keyPair });
+	            }
+
+	       
+
+	            // TODO:MAK pdb may also be merged, but it's not a priority for me. 
+	            // I need to deleted in though as it no longer matches assembly
+	            var pdbFileName = Path.ChangeExtension(assemblyTmpFileName, "pdb");
+	            if (File.Exists(pdbFileName))
+	                DeleteFile(pdbFileName);
+	        }
+	        catch
+	        {
+
+	            throw;
+	        }
+	    }
+        /// <summary>Compares assembly names.</summary>
+        /// <param name="valueA">The value A.</param>
+        /// <param name="valueB">The value B.</param>
+        /// <returns><c>true</c> if assembly names are equal.</returns>
+        public static bool EqualAssemblyNames(string valueA, string valueB)
 		{
 			return String.Compare(valueA, valueB, IgnoreCase) == 0;
 		}
@@ -302,5 +355,20 @@ namespace LibZ.Msil
 
 			return references.Select(r => r.Version).Max();
 		}
-	}
+
+	    public static void ReplaceMainFile(string mainFileName, string tempFileName)
+	    {
+	        try
+	        {
+	            if (!File.Exists(tempFileName)) return;
+	            File.Delete(mainFileName);
+	            File.Move(tempFileName, mainFileName);
+	        }
+	        catch (Exception e)
+	        {
+	            Log.Error(e);
+	            throw;
+	        }
+	    }
+    }
 }

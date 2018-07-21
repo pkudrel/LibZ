@@ -46,83 +46,100 @@
 
 #endregion
 
+using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Xml.Linq;
 using LibZ.Msil;
 using NLog;
 
 namespace LibZ.Tool.Tasks
 {
-	/// <summary>
-	///     Injects .dll into assembly.
-	/// </summary>
-	public class InjectDllTask: TaskBase
-	{
-		#region consts
+    /// <summary>
+    /// Injects .dll into assembly.
+    /// </summary>
+    public class InjectDllTask : TaskBase
+    {
+        #region consts
 
-		/// <summary>Logger for this class.</summary>
-		private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        /// <summary>Logger for this class.</summary>
+        private static readonly Logger Log = LogManager.GetCurrentClassLogger();
 
-		#endregion
+        #endregion
 
-	    /// <summary>Executes the task.</summary>
-	    /// <param name="mainFileName">Name of the main file.</param>
-	    /// <param name="includePatterns">The include patterns.</param>
-	    /// <param name="excludePatterns">The exclude patterns.</param>
-	    /// <param name="keyFileName">Name of the key file.</param>
-	    /// <param name="keyFilePassword">The key file password.</param>
-	    /// <param name="overwrite">
-	    /// if set to <c>true</c> overwrites .dll already embedded.
-	    /// </param>
-	    /// <param name="move">
-	    /// if set to <c>true</c> moves assembly (deletes source files).
-	    /// </param>
-	    /// <param name="appConfigFile"></param>
-	    public virtual void Execute(string mainFileName,
-	        string[] includePatterns, string[] excludePatterns,
-	        string keyFileName, string keyFilePassword,
-	        bool overwrite, bool move, string appConfigFile)
-		{
-			if (!File.Exists(mainFileName))
-				throw FileNotFound(mainFileName);
+        /// <summary>Executes the task.</summary>
+        /// <param name="mainFileName">Name of the main file.</param>
+        /// <param name="includePatterns">The include patterns.</param>
+        /// <param name="excludePatterns">The exclude patterns.</param>
+        /// <param name="keyFileName">Name of the key file.</param>
+        /// <param name="keyFilePassword">The key file password.</param>
+        /// <param name="overwrite">
+        /// if set to <c>true</c> overwrites .dll already embedded.
+        /// </param>
+        /// <param name="move">
+        /// if set to <c>true</c> moves assembly (deletes source files).
+        /// </param>
+        /// <param name="appConfigFile"></param>
+        public virtual void Execute(string mainFileName,
+            string[] includePatterns, string[] excludePatterns,
+            string keyFileName, string keyFilePassword,
+            bool overwrite, bool move, string appConfigFile)
+        {
+            if (!File.Exists(mainFileName))
+                throw FileNotFound(mainFileName);
 
-			var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
-			var assembly = MsilUtilities.LoadAssembly(mainFileName);
-			ValidateAsmZInstrumentation(assembly);
+            var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
+            var tempFileName = $"{mainFileName}.{Guid.NewGuid():N}";
 
-			var injectedFileNames = new List<string>();
+            using (var assembly = MsilUtilities.LoadAssembly(mainFileName))
+            {
+                ValidateAsmZInstrumentation(assembly);
 
-			foreach (var fileName in FindFiles(includePatterns, excludePatterns))
-			{
-				var sourceAssembly = MsilUtilities.LoadAssembly(fileName);
-				if (sourceAssembly == null)
-				{
-					Log.Error("Assembly '{0}' could not be loaded", fileName);
-					continue;
-				}
+                var injectedFileNames = new List<string>();
 
-				Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
-				if (!InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite))
-					continue;
+                if (string.IsNullOrEmpty(appConfigFile) == false)
+                    if (File.Exists(appConfigFile))
+                    {
+                        var doc = XDocument.Load(appConfigFile);
+                        var txt = doc.Descendants().FirstOrDefault(p => p.Name.LocalName == "assemblyBinding")
+                            ?.ToString();
+                    }
 
-				injectedFileNames.Add(fileName);
-			}
+                foreach (var fileName in FindFiles(includePatterns, excludePatterns))
+                {
+                    var sourceAssembly = MsilUtilities.LoadAssembly(fileName);
+                    if (sourceAssembly == null)
+                    {
+                        Log.Error("Assembly '{0}' could not be loaded", fileName);
+                        continue;
+                    }
 
-			if (injectedFileNames.Count <= 0)
-			{
-				Log.Warn("No files injected: {0}", string.Join(", ", includePatterns));
-			}
-			else
-			{
-				Log.Info("Instrumenting assembly with initialization code");
-				InstrumentAsmZ(assembly);
+                    Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
+                    if (!InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite))
+                        continue;
 
-				MsilUtilities.SaveAssembly(assembly, mainFileName, keyPair);
+                    injectedFileNames.Add(fileName);
+                }
 
-				if (move)
-					foreach (var fn in injectedFileNames)
-						DeleteFile(fn);
-			}
-		}
-	}
+
+                if (injectedFileNames.Count <= 0)
+                {
+                    Log.Warn("No files injected: {0}", string.Join(", ", includePatterns));
+                }
+                else
+                {
+                    Log.Info("Instrumenting assembly with initialization code");
+                    InstrumentAsmZ(assembly);
+                    MsilUtilities.SaveAssemblyToTmp(assembly, tempFileName, keyPair);
+
+                    if (move)
+                        foreach (var fn in injectedFileNames)
+                            DeleteFile(fn);
+                }
+            }
+
+            MsilUtilities.ReplaceMainFile(mainFileName, tempFileName);
+        }
+    }
 }

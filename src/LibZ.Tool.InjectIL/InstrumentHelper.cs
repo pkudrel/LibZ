@@ -223,7 +223,7 @@ namespace LibZ.Tool.InjectIL
 					var targetMethod = targetType.Methods.Single(m => m.Name == "RegisterAllResourceContainers");
 					body.Add(Instruction.Create(OpCodes.Ldtoken, initializerType));
 					body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.ImportMethod<Type>("GetTypeFromHandle")));
-					body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.Import(targetMethod)));
+					body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.ImportReference(targetMethod)));
 					body.Add(Instruction.Create(OpCodes.Pop));
 				}
 
@@ -234,7 +234,7 @@ namespace LibZ.Tool.InjectIL
 					{
 						body.Add(Instruction.Create(OpCodes.Ldstr, libzFile));
 						body.Add(Instruction.Create(OpCodes.Ldc_I4_1));
-						body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.Import(targetMethod)));
+						body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.ImportReference(targetMethod)));
 						body.Add(Instruction.Create(OpCodes.Pop));
 					}
 				}
@@ -245,9 +245,11 @@ namespace LibZ.Tool.InjectIL
 					foreach (var libzFolder in libzPatterns)
 					{
 						body.Add(Instruction.Create(OpCodes.Ldstr, libzFolder));
-						body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.Import(targetMethod)));
+						body.Add(Instruction.Create(OpCodes.Call, _targetAssembly.MainModule.ImportReference(targetMethod)));
 						body.Add(Instruction.Create(OpCodes.Pop));
-					}
+		
+
+                    }
 				}
 			}
 

@@ -231,7 +231,7 @@ namespace LibZ.Tool.InjectIL
 			return
 				BelongsTo(typeref, _into) ? typeref :
 					BelongsTo(typeref, _from) ? FindOrCloneType(typeref.Resolve(), _overwrite) :
-						_into.MainModule.Import(typeref);
+						_into.MainModule.ImportReference(typeref);
 		}
 
 		/// <summary>
@@ -255,8 +255,8 @@ namespace LibZ.Tool.InjectIL
 				var sourceMethod = methodref.Resolve();
 				return targetType.Resolve().Methods.Single(m => IsMatch(m, sourceMethod));
 			}
-			_into.MainModule.Import(methodref.DeclaringType);
-			return _into.MainModule.Import(methodref);
+			_into.MainModule.ImportReference(methodref.DeclaringType);
+			return _into.MainModule.ImportReference(methodref);
 		}
 
 		/// <summary>
@@ -308,8 +308,8 @@ namespace LibZ.Tool.InjectIL
 				var targetType = Resolve(fieldref.DeclaringType);
 				return targetType.Resolve().Fields.Single(f => f.FullName == fieldref.FullName);
 			}
-			_into.MainModule.Import(fieldref.DeclaringType);
-			return _into.MainModule.Import(fieldref);
+			_into.MainModule.ImportReference(fieldref.DeclaringType);
+			return _into.MainModule.ImportReference(fieldref);
 		}
 
 		/// <summary>Resolves any refernce.</summary>

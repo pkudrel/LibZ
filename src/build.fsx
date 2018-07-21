@@ -109,7 +109,9 @@ Target "Release" (fun _ ->
     !! "./LibZ.Bootstrap.40/bin/Release/LibZ.Bootstrap.dll" |> Copy "./../out/lib/net40"
 
     let temp = (environVarOrDefault "TEMP" "./../out/temp") @@ "libz"
+    let temp2 = (environVarOrDefault "TEMP" "./../out/temp") @@ "libz2"
     !! "./../out/tool/**/*" |> Copy temp
+    !! "./../out/tool/**/*" |> Copy temp2
 
     { defaultParams with
         Program = temp @@ "libz.exe"

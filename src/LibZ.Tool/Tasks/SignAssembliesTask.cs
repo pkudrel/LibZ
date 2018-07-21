@@ -46,6 +46,7 @@
 
 #endregion
 
+using System;
 using LibZ.Msil;
 using NLog;
 
@@ -80,29 +81,32 @@ namespace LibZ.Tool.Tasks
 
 			foreach (var fileName in FindFiles(includePatterns, excludePatterns))
 			{
-				var assembly = MsilUtilities.LoadAssembly(fileName);
+			    var tempFileName = String.Format("{0}.{1:N}", fileName, Guid.NewGuid());
+                using (var assembly = MsilUtilities.LoadAssembly(fileName))
+			    {
+			        if (!MsilUtilities.IsManaged(assembly))
+			        {
+			            Log.Warn("Assembly '{0}' is unmanaged, thus cannot be resigned", fileName);
+			            continue;
+			        }
 
-				if (!MsilUtilities.IsManaged(assembly))
-				{
-					Log.Warn("Assembly '{0}' is unmanaged, thus cannot be resigned", fileName);
-					continue;
-				}
+			        if (MsilUtilities.IsSigned(assembly))
+			        {
+			            if (force)
+			            {
+			                Log.Warn("Assembly '{0}' was previously signed, but it going to be resigned with new key", fileName);
+			            }
+			            else
+			            {
+			                Log.Debug("Assembly '{0}' is already signed so it does not need resigning", fileName);
+			                continue;
+			            }
+			        }
 
-				if (MsilUtilities.IsSigned(assembly))
-				{
-					if (force)
-					{
-						Log.Warn("Assembly '{0}' was previously signed, but it going to be resigned with new key", fileName);
-					}
-					else
-					{
-						Log.Debug("Assembly '{0}' is already signed so it does not need resigning", fileName);
-						continue;
-					}
-				}
-
-				MsilUtilities.SaveAssembly(assembly, fileName, keyPair);
-			}
+			        MsilUtilities.SaveAssemblyToTmp(assembly, tempFileName, keyPair);
+			    }
+			    MsilUtilities.ReplaceMainFile(fileName, tempFileName);
+            }
 		}
 	}
 }

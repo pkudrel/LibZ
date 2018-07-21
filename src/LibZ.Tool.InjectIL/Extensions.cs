@@ -73,7 +73,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Reference to imported type.</returns>
 		public static TypeReference ImportType(this AssemblyDefinition assembly, TypeReference type)
 		{
-			return assembly.MainModule.Import(type);
+			return assembly.MainModule.ImportReference(type);
 		}
 
 		/// <summary>Imports the type.</summary>
@@ -82,7 +82,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Reference to imported type.</returns>
 		public static TypeReference ImportType<T>(this AssemblyDefinition assembly)
 		{
-			return assembly.MainModule.Import(typeof(T));
+			return assembly.MainModule.ImportReference(typeof(T));
 		}
 
 		/// <summary>Imports method.</summary>
@@ -92,7 +92,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Reference to imported method.</returns>
 		public static MethodReference ImportMethod<T>(this AssemblyDefinition assembly, string methodName)
 		{
-			return assembly.MainModule.Import(typeof(T).GetMethod(methodName));
+			return assembly.MainModule.ImportReference(typeof(T).GetMethod(methodName));
 		}
 
 		/// <summary>Imports the method.</summary>
@@ -103,7 +103,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Reference to imported method.</returns>
 		public static MethodReference ImportMethod(this AssemblyDefinition assembly, Type type, string methodName, params Type[] types)
 		{
-			return assembly.MainModule.Import(type.GetMethod(methodName, types));
+			return assembly.MainModule.ImportReference(type.GetMethod(methodName, types));
 		}
 
 		// ReSharper disable MethodOverloadWithOptionalParameter
@@ -116,7 +116,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Reference to imported method.</returns>
 		public static MethodReference ImportMethod<T>(this AssemblyDefinition assembly, string methodName, params Type[] types)
 		{
-			return assembly.MainModule.Import(typeof(T).GetMethod(methodName, types));
+			return assembly.MainModule.ImportReference(typeof(T).GetMethod(methodName, types));
 		}
 
 		// ReSharper restore MethodOverloadWithOptionalParameter
@@ -128,7 +128,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>Rference to impored constructor.</returns>
 		public static MethodReference ImportCtor<T>(this AssemblyDefinition assembly, params Type[] types)
 		{
-			return assembly.MainModule.Import(typeof(T).GetConstructor(types));
+			return assembly.MainModule.ImportReference(typeof(T).GetConstructor(types));
 		}
 	}
 }

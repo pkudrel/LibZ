@@ -368,9 +368,11 @@ namespace LibZ.Tool.Tasks
         protected static void InstrumentAsmZ(AssemblyDefinition targetAssembly)
 		{
 			var helper = new InstrumentHelper(targetAssembly);
-			helper.InjectLibZInitializer();
-			helper.InjectAsmZResolver();
-		}
+            helper.InjectLibZInitializer();
+		    helper.InjectDependentAssembly();
+            helper.InjectAsmZResolver();
+		   
+        }
 
 		/// <summary>Validates if AsmZResolver can be injected.</summary>
 		/// <param name="assembly">The target assembly.</param>

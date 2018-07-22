@@ -87,12 +87,17 @@ namespace LibZ.Tool.Tasks
             string keyFileName, string keyFilePassword,
             bool overwrite, bool move, string appConfigFile)
         {
+
+            Log.Debug($"mainFileName: {mainFileName}");
+
             if (!File.Exists(mainFileName))
                 throw FileNotFound(mainFileName);
 
+
+
             var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
             var tempFileName = $"{mainFileName}.{Guid.NewGuid():N}";
-
+            Log.Debug($"tempFileName: {tempFileName}");
             using (var assembly = MsilUtilities.LoadAssembly(mainFileName))
             {
                 ValidateAsmZInstrumentation(assembly);
@@ -107,9 +112,7 @@ namespace LibZ.Tool.Tasks
                             ?.ToString();
                         if (string.IsNullOrEmpty(txt) == false)
                         {
-
-                            Log.Debug(txt);
-                            byte[] bytes = Encoding.UTF8.GetBytes(txt);
+                            var bytes = Encoding.UTF8.GetBytes(txt);
                             var added = InjectAsResources(assembly, "assemblyBinding", appConfigFile, bytes,
                                 overwrite);
                             Log.Debug(added

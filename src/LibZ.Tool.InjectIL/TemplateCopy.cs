@@ -53,6 +53,7 @@ using System.Reflection;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 using Mono.Cecil.Rocks;
+using NLog;
 
 namespace LibZ.Tool.InjectIL
 {
@@ -66,13 +67,16 @@ namespace LibZ.Tool.InjectIL
 	/// </summary>
 	public class TemplateCopy
 	{
-		#region static fields
 
-		/// <summary>
-		///     The Instruction class does not expose all constructors.
-		///     Unfortunatelly I need the one which is not exposed.
-		/// </summary>
-		private static readonly ConstructorInfo InstructionConstructorInfo =
+
+	    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        #region static fields
+
+        /// <summary>
+        ///     The Instruction class does not expose all constructors.
+        ///     Unfortunatelly I need the one which is not exposed.
+        /// </summary>
+        private static readonly ConstructorInfo InstructionConstructorInfo =
 			typeof(Instruction).GetConstructor(
 				BindingFlags.NonPublic | BindingFlags.Instance,
 				null,
@@ -143,6 +147,8 @@ namespace LibZ.Tool.InjectIL
 			AssemblyDefinition from, AssemblyDefinition into, TypeReference type,
 			bool overwrite)
 		{
+
+            Log.Debug($"Run: {from}");
 			var worker = new TemplateCopy(from, into, type, overwrite);
 			worker.Run();
 			return worker.GetExceptions();
@@ -351,6 +357,7 @@ namespace LibZ.Tool.InjectIL
 		/// <returns>New type reference.</returns>
 		private TypeReference FindOrCloneType(TypeDefinition sourceType, bool overwrite)
 		{
+          
 			var typeName = sourceType.FullName;
 			var found = FindType(typeName);
 
@@ -374,9 +381,10 @@ namespace LibZ.Tool.InjectIL
 			_into.MainModule.Types.Add(targetType);
 			_clonedTypes.Add(sourceType.FullName);
 
-			// TODO:MAK NestedTypes
-
-			Inject(() => {
+            // TODO:MAK NestedTypes
+	
+           
+            Inject(() => {
 				// TODO:MAK Interfaces, Properties, Events
 				CopyAttributes(sourceType, targetType);
 				sourceType.Fields.ForEach(f => CloneField(targetType, f));
@@ -393,6 +401,8 @@ namespace LibZ.Tool.InjectIL
 		{
 			var targetField = new FieldDefinition(
 				sourceField.Name, sourceField.Attributes, Resolve(sourceField.FieldType));
+
+           
 			CopyAttributes(sourceField, targetField);
 			type.Fields.Add(targetField);
 		}

@@ -42,6 +42,7 @@
     <Compile Include="..\LibZ.Injected.40\LibZInitializer.cs">
       <Link>LibZInitializer.cs</Link>
     </Compile>
+    <Compile Include="DependentAssembly.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />

@@ -193,9 +193,12 @@ namespace LibZ.Msil
 				Log.Debug("Loaded '{0}'", result.FullName);
 				return result;
 			}
-			catch
+			catch(Exception e)
 			{
-				Log.Warn("Failed to load assembly from byte buffer");
+
+			    Log.Warn(e.Message);
+                Log.Warn("Failed to load assembly from byte buffer");
+                
 				return null;
 			}
 		}
@@ -353,6 +356,9 @@ namespace LibZ.Msil
 				throw new ArgumentException(string.Format(
 					"Assembly '{0}' does not reference any known core assembly. Cannot determine .NET version.", assembly.Name));
 
+		    var ver = references.Select(r => r.Version).Max();
+
+            Log.Debug($"Version: {ver}");
 			return references.Select(r => r.Version).Max();
 		}
 

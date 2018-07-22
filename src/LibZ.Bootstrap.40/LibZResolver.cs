@@ -110,8 +110,7 @@ namespace LibZ.Bootstrap
 	// in LibZ.Bootstrap LibZResolver needs to be exposed
 
 	public partial class LibZResolver { };
-
-	namespace Internal
+    namespace Internal
 	{
 		internal partial class LibZEntry { };
 
@@ -141,12 +140,14 @@ namespace LibZ.Bootstrap
 	/// <summary>Assembly resolver and repository of .libz files.</summary>
 	partial class LibZResolver
 	{
-		#region consts
 
-		/// <summary>
-		///     Regular expression for embedded containers.
-		/// </summary>
-		private static readonly Regex LibZResourceNameRx = new Regex(
+	
+        #region consts
+
+        /// <summary>
+        ///     Regular expression for embedded containers.
+        /// </summary>
+        private static readonly Regex LibZResourceNameRx = new Regex(
 			@"^libz://[0-9A-Fa-f]{32}$",
 			RegexOptions.IgnoreCase);
 
@@ -169,12 +170,19 @@ namespace LibZ.Bootstrap
 
 		private static readonly Dictionary<Guid, Assembly> LoadedAssemblies;
 
-		#endregion
 
-		#region shared static properies
+        // 
+	    private static Assembly ThisAssembly = typeof(LibZResolver).Assembly;
+     
+        #endregion
 
-		/// <summary>The shared dictionary.</summary>
-		private static readonly GlobalDictionary SharedData =
+
+	  
+
+        #region shared static properies
+
+        /// <summary>The shared dictionary.</summary>
+        private static readonly GlobalDictionary SharedData =
 			new GlobalDictionary("LibZResolver.71c503c0c0824d9785f4994d5034c8a0");
 
 		/// <summary>Gets or sets the register stream callback.</summary>
@@ -245,7 +253,7 @@ namespace LibZ.Bootstrap
 				ContainerRepository = new List<LibZReader>();
 				LoadedAssemblies = new Dictionary<Guid, Assembly>();
 				Lock = new ReaderWriterLockSlim();
-
+               
 				// intialize paths
 				var searchPath = new List<string> { AppDomain.CurrentDomain.BaseDirectory };
 				var systemPath = Environment.GetEnvironmentVariable("PATH") ?? string.Empty;
@@ -269,7 +277,9 @@ namespace LibZ.Bootstrap
 			}
 		}
 
-		private static Guid RegisterStreamImplementation(Stream stream)
+        
+
+	    private static Guid RegisterStreamImplementation(Stream stream)
 		{
 			var container = new LibZReader(stream);
 
@@ -1609,9 +1619,18 @@ namespace LibZ.Bootstrap
 				Trace.TraceInformation("INFO (LibZ/{0}) {1}", ThisAssemblyName, message);
 			}
 
-			/// <summary>Sends warning message.</summary>
-			/// <param name="message">The message.</param>
-			internal static void Warn(string message)
+		    /// <summary>Sends debug message.</summary>
+		    /// <param name="message">The message.</param>
+		    internal static void Info(string message)
+		    {
+		        if (message == null )
+		            return;
+		        Trace.TraceInformation("INFO (LibZ/{0}) {1}", ThisAssemblyName, message);
+		    }
+
+            /// <summary>Sends warning message.</summary>
+            /// <param name="message">The message.</param>
+            internal static void Warn(string message)
 			{
 				if (message == null || !UseTrace)
 					return;

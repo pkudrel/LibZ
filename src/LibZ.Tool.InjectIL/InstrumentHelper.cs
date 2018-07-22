@@ -53,6 +53,8 @@ using System.Linq;
 using LibZ.Msil;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
+using NLog;
+
 
 namespace LibZ.Tool.InjectIL
 {
@@ -64,8 +66,7 @@ namespace LibZ.Tool.InjectIL
 	/// </summary>
 	public class InstrumentHelper
 	{
-		#region consts
-
+	
 		/// <summary>The Silverlight/portable version.</summary>
 		private static readonly Version Version2050 = new Version(2, 0, 5, 0);
 
@@ -75,12 +76,11 @@ namespace LibZ.Tool.InjectIL
 		/// <summary>.NET 4, 4.5</summary>
 		private static readonly Version Version4000 = new Version(4, 0, 0, 0);
 
-		#endregion
+	    private static readonly Logger Log = LogManager.GetCurrentClassLogger();
+        #region fields
 
-		#region fields
-
-		/// <summary>The assembly to be injected.</summary>
-		private readonly AssemblyDefinition _sourceAssembly;
+        /// <summary>The assembly to be injected.</summary>
+        private readonly AssemblyDefinition _sourceAssembly;
 
 		private readonly byte[] _sourceAssemblyImage;
 
@@ -95,7 +95,6 @@ namespace LibZ.Tool.InjectIL
 
 		#endregion
 
-		#region constructor
 
 		/// <summary>
 		///     Initializes a new instance of the <see cref="InstrumentHelper" /> class.
@@ -106,14 +105,20 @@ namespace LibZ.Tool.InjectIL
 			AssemblyDefinition targetAssembly,
 			AssemblyDefinition bootstrapAssembly = null)
 		{
-			var frameworkVersion = MsilUtilities.GetFrameworkVersion(targetAssembly);
+
+		    Log.Debug($"targetAssembly: {targetAssembly}; bootstrapAssembly: {bootstrapAssembly}");
+
+            var frameworkVersion = MsilUtilities.GetFrameworkVersion(targetAssembly);
 			_sourceAssemblyImage = GetInjectedAssemblyImage(frameworkVersion);
 			_sourceAssembly = MsilUtilities.LoadAssembly(_sourceAssemblyImage);
 
-			if (bootstrapAssembly == null)
+            if (bootstrapAssembly == null)
 			{
-				_bootstrapAssemblyImage = GetBootstrapAssemblyImage(frameworkVersion);
-				_bootstrapAssembly = MsilUtilities.LoadAssembly(_bootstrapAssemblyImage);
+
+			    Log.Debug($"BootstrapAssembly is null: FrameworkVersion: {frameworkVersion}");
+                _bootstrapAssemblyImage = GetBootstrapAssemblyImage(frameworkVersion);
+			    Log.Debug($"_bootstrapAssemblyImage  {_bootstrapAssemblyImage.Length}");
+                _bootstrapAssembly = MsilUtilities.LoadAssembly(_bootstrapAssemblyImage);
 			}
 			else
 			{
@@ -127,15 +132,17 @@ namespace LibZ.Tool.InjectIL
 					"Instrumentation assembly could not be found for framework version '{0}'", frameworkVersion));
 
 			_targetAssembly = targetAssembly;
-		}
 
-		#endregion
+		    Log.Debug($"_sourceAssembly: {_sourceAssembly}; bootstrapAssembly: {_bootstrapAssembly}");
+        }
 
+		
 		#region public interface
 
 		/// <summary>Injects the LibZInitializer.</summary>
 		public void InjectLibZInitializer()
 		{
+            Log.Debug("Start InjectLibZInitializer");
 			const string typeName = "LibZ.Injected.LibZInitializer";
 			var targetType = _targetAssembly.MainModule.Types.SingleOrDefault(t => t.FullName == typeName);
 			if (targetType != null)
@@ -172,30 +179,53 @@ namespace LibZ.Tool.InjectIL
 		/// <summary>Injects the AsmZ (embedded dll) resolver.</summary>
 		public void InjectAsmZResolver()
 		{
-			const string typeLibZInitializer = "LibZ.Injected.LibZInitializer";
+
+		    Log.Debug("Start InjectAsmZResolver");
+            const string typeLibZInitializer = "LibZ.Injected.LibZInitializer";
 			var initializerType = _targetAssembly.MainModule.Types.Single(t => t.FullName == typeLibZInitializer);
 			var initializerMethod = initializerType.Methods.Single(m => m.Name == "InitializeAsmZ");
 			var body = initializerMethod.Body.Instructions;
-
-			body.Clear();
+		  
+            body.Clear();
 
 			const string typeAsmZResolver = "LibZ.Injected.AsmZResolver";
 			var sourceType = _sourceAssembly.MainModule.Types.Single(t => t.FullName == typeAsmZResolver);
-			TemplateCopy.Run(_sourceAssembly, _targetAssembly, sourceType, false);
+            Log.Debug($"Main run; sourceType: {sourceType}; ");
+		    TemplateCopy.Run(_sourceAssembly, _targetAssembly, sourceType, false);
 			var targetType = _targetAssembly.MainModule.Types.Single(t => t.FullName == typeAsmZResolver);
-			var targetMethod = targetType.Methods.Single(m => m.Name == "Initialize");
-			body.Add(Instruction.Create(OpCodes.Call, targetMethod));
+            var targetMethod = targetType.Methods.Single(m => m.Name == "Initialize");
+		  
+            body.Add(Instruction.Create(OpCodes.Call, targetMethod));
 
 			body.Add(Instruction.Create(OpCodes.Ret));
 		}
 
-		/// <summary>Injects the LibZ (embedded .libz) startup code.</summary>
-		/// <param name="allResources">
-		///     if set to <c>true</c> registers all embedded .libz resource.
-		/// </param>
-		/// <param name="libzFiles">The LibZ files.</param>
-		/// <param name="libzPatterns">The LibZ patterns.</param>
-		public void InjectLibZStartup(bool allResources, ICollection<string> libzFiles, ICollection<string> libzPatterns)
+	    /// <summary>Injects the AsmZ (embedded dll) resolver.</summary>
+	    public void InjectDependentAssembly()
+	    {
+	        const string typeLibZInitializer = "LibZ.Injected.LibZInitializer";
+	        var initializerType = _targetAssembly.MainModule.Types.Single(t => t.FullName == typeLibZInitializer);
+	        var initializerMethod = initializerType.Methods.Single(m => m.Name == "InitializeAsmZ");
+	        var body = initializerMethod.Body.Instructions;
+
+	        body.Clear();
+
+	       
+
+	        const string typeAsmZResolver = "LibZ.Injected.DependentAssembly";
+	        var sourceType = _sourceAssembly.MainModule.Types.Single(t => t.FullName == typeAsmZResolver);
+	       
+            TemplateCopy.Run(_sourceAssembly, _targetAssembly, sourceType, false);
+	       
+	    }
+
+        /// <summary>Injects the LibZ (embedded .libz) startup code.</summary>
+        /// <param name="allResources">
+        ///     if set to <c>true</c> registers all embedded .libz resource.
+        /// </param>
+        /// <param name="libzFiles">The LibZ files.</param>
+        /// <param name="libzPatterns">The LibZ patterns.</param>
+        public void InjectLibZStartup(bool allResources, ICollection<string> libzFiles, ICollection<string> libzPatterns)
 		{
 			var remove = !allResources && libzFiles.Count <= 0 && libzPatterns.Count <= 0;
 

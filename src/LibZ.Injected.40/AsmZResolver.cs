@@ -1,6 +1,4 @@
-﻿
-
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -15,95 +13,17 @@ using Microsoft.Win32;
 namespace LibZ.Injected
 {
     /// <summary>
-    /// 
     /// </summary>
-    public class AsmDataMar
-    {
-       
-        /// <summary>
-        /// 
-        /// </summary>
-        public string Name { get; set; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public string PublicKeyToken { get; set; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public string Culture { get; set; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public string OldVersion { get; set; }
-        /// <summary>
-        /// 
-        /// </summary>
-        public string NewVersion { get; set; }
-    }
-
-    internal class DependentAssemblyParser
-    {
-
-
-        public static List<AsmDataMar> Parse(string t)
-        {
-            var pos = 0;
-            var list = new List<AsmDataMar>();
-            while (true)
-            {
-                var start = t.IndexOf("<dependentAssembly>", pos, StringComparison.Ordinal);
-                if (start < 0) break;
-                var name = GetValue(t, "name", start);
-                var publicKeyToken = GetValue(t, "publicKeyToken", start);
-                var culture = GetValue(t, "culture", start);
-                var oldVersion = GetValue(t, "oldVersion", start);
-                var newVersion = GetValue(t, "newVersion", start);
-                var record = new AsmDataMar
-                {
-                    Name = name,
-                    PublicKeyToken = publicKeyToken,
-                    Culture = culture,
-                    OldVersion = oldVersion,
-                    NewVersion = newVersion
-                };
-                list.Add(record);
-                var end = t.IndexOf("</dependentAssembly>", start, StringComparison.Ordinal);
-                if (end < 0) break;
-                pos = end;
-            }
-            return list;
-        }
-
-        private static string GetValue(string txt, string name, int start)
-        {
-            var posToken = txt.IndexOf(name, start, StringComparison.OrdinalIgnoreCase);
-            if (posToken < 0) return string.Empty;
-            var posStart = txt.IndexOf("\"", posToken, StringComparison.OrdinalIgnoreCase);
-            if (posStart < 0) return string.Empty;
-            posStart++;
-            var posEnd = txt.IndexOf("\"", posStart, StringComparison.OrdinalIgnoreCase);
-            var ret = txt.Substring(posStart, posEnd - posStart);
-            return ret;
-        }
-    }
-
-
     /// <summary>
     /// AsmZResolver. Mini resolver getting assemblies straight from resources.
     /// </summary>
     internal class AsmZResolver
     {
-        /// <summary>Initializes the <see cref="AsmZResolver" /> class.</summary>
-        static AsmZResolver()
-        {
-            var value =
-                SafeGetRegistryDWORD(false, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
-                SafeGetRegistryDWORD(true, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
-                0;
-            //UseTrace = value != 0;
-            UseTrace = true;
-        }
+        /// <summary>Trace key path.</summary>
+        public const string REGISTRY_KEY_PATH = @"Software\Softpark\LibZ";
+
+        /// <summary>Trace key name.</summary>
+        public const string REGISTRY_KEY_NAME = @"Trace";
 
 
         /// <summary>The resource name regular expression.</summary>
@@ -120,13 +40,6 @@ namespace LibZ.Injected
         /// <summary>Hash of 'this' assembly name.</summary>
         private static readonly Guid ThisAssemblyGuid = Hash(ThisAssembly.FullName);
 
-        /// <summary>Trace key path.</summary>
-        public const string REGISTRY_KEY_PATH = @"Software\Softpark\LibZ";
-
-        /// <summary>Trace key name.</summary>
-        public const string REGISTRY_KEY_NAME = @"Trace";
-
-
 
         /// <summary>The initialized flag.</summary>
         private static int _initialized;
@@ -140,14 +53,27 @@ namespace LibZ.Injected
             new Dictionary<Guid, Assembly>();
 
         /// <summary>The loaded assemblies cache.</summary>
-        public static List<LibZ.Injected.AsmDataMar> Data;// = new List<LibZ.Injected.AsmData>();
-
         /// <summary>Flag indicating if Trace should be used.</summary>
         private static readonly bool UseTrace;
 
 
-       // private static readonly List<string> Data = new List<string>() ;
-   //    private static readonly List<AsmData> Data = new List<AsmData>() ;
+        // private static readonly List<string> Data = new List<string>() ;
+        private static readonly
+            List<(string Name, string PublicKeyToken, string Culture, string oldVersion, string newVersion)>
+            DependentAssemblies
+                = new List<(string, string, string, string, string)>();
+
+
+        /// <summary>Initializes the <see cref="AsmZResolver" /> class.</summary>
+        static AsmZResolver()
+        {
+            var value =
+                SafeGetRegistryDWORD(false, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
+                SafeGetRegistryDWORD(true, REGISTRY_KEY_PATH, REGISTRY_KEY_NAME) ??
+                0;
+            //UseTrace = value != 0;
+            UseTrace = true;
+        }
 
         /// <summary>Initializes resolver.</summary>
         public static void Initialize()
@@ -155,22 +81,16 @@ namespace LibZ.Injected
             if (Interlocked.CompareExchange(ref _initialized, 1, 0) != 0)
                 return;
 
-            
+
             foreach (var rn in ThisAssembly.GetManifestResourceNames())
             {
-                Info($"Name: {rn}");
-
-                if (rn.StartsWith("assemblyBinding:"))
-                {
-                    ProcessAssemblyBinding(rn);
-                    continue;
-                }
-
+               
+                if (rn.StartsWith("assemblyBinding://")) ProcessAssemblyBinding(rn);
                 var m = ResourceNameRx.Match(rn);
                 if (!m.Success) continue;
                 var guid = new Guid(m.Groups["guid"].Value);
                 if (ResourceNames.ContainsKey(guid))
-                    Warn(string.Format("Duplicated assembly id '{0:N}', ignoring.", guid));
+                    Warn($"Duplicated assembly id '{guid:N}', ignoring.");
                 else
                     ResourceNames[guid] = m;
             }
@@ -180,27 +100,55 @@ namespace LibZ.Injected
 
         private static void ProcessAssemblyBinding(string resourceName)
         {
+            Info($"ProcessAssemblyBinding; Name: {resourceName}");
             using (var stream = ThisAssembly.GetManifestResourceStream(resourceName))
             {
-                if (stream == null) return;
-                var buffer = new byte[stream.Length];
-                stream.Read(buffer, 0, buffer.Length);
-                var result = Encoding.UTF8.GetString(buffer);
-                Info($"result: {result}");
-                var dp = DependentAssemblyParser.Parse(result);
-                Info($"items: {dp.Count}");
                 try
                 {
+                    if (stream == null) return;
+                    var buffer = new byte[stream.Length];
+                    stream.Read(buffer, 0, buffer.Length);
+                    var result = Encoding.UTF8.GetString(buffer);
+                    ParseDependentAssembly(result);
                 }
                 catch (Exception e)
                 {
-                    Info($"result: {e.Message}");
+                    Error($"result: {e.Message}");
                 }
-
-
-                //  AssemblyBindings
             }
         }
+
+        public static void ParseDependentAssembly(string t)
+        {
+            string GetValue(string txt, string name, int start)
+            {
+                var posToken = txt.IndexOf(name, start, StringComparison.OrdinalIgnoreCase);
+                if (posToken < 0) return string.Empty;
+                var posStart = txt.IndexOf("\"", posToken, StringComparison.OrdinalIgnoreCase);
+                if (posStart < 0) return string.Empty;
+                posStart++;
+                var posEnd = txt.IndexOf("\"", posStart, StringComparison.OrdinalIgnoreCase);
+                var ret = txt.Substring(posStart, posEnd - posStart);
+                return ret;
+            }
+
+            var pos = 0;
+            while (true)
+            {
+                var start = t.IndexOf("<dependentAssembly>", pos, StringComparison.Ordinal);
+                if (start < 0) break;
+                var name = GetValue(t, "name", start);
+                var publicKeyToken = GetValue(t, "publicKeyToken", start);
+                var culture = GetValue(t, "culture", start);
+                var oldVersion = GetValue(t, "oldVersion", start);
+                var newVersion = GetValue(t, "newVersion", start);
+                DependentAssemblies.Add((name, publicKeyToken, culture, oldVersion, newVersion));
+                var end = t.IndexOf("</dependentAssembly>", start, StringComparison.Ordinal);
+                if (end < 0) break;
+                pos = end;
+            }
+        }
+
 
         /// <summary>
         /// Gets bool value from registry. Note this is a wropper to
@@ -238,10 +186,8 @@ namespace LibZ.Injected
             var root = machine ? Registry.LocalMachine : Registry.CurrentUser;
 
             var key = root.OpenSubKey(path, false);
-            if (key == null)
-                return null;
 
-            var value = key.GetValue(name);
+            var value = key?.GetValue(name);
             if (value == null)
                 return null;
 
@@ -261,7 +207,7 @@ namespace LibZ.Injected
         /// <returns>Loaded assembly or <c>null</c>.</returns>
         private static Assembly AssemblyResolver(object sender, ResolveEventArgs args)
         {
-            Debug(string.Format("Resolving: '{0}'", args.Name));
+            Debug($"Resolving: '{args.Name}'");
 
             var name = args.Name;
             var result =
@@ -270,9 +216,13 @@ namespace LibZ.Injected
                 TryLoadAssembly((IntPtr.Size == 4 ? "x64:" : "x86:") + name);
 
             if (result != null)
-                Debug(string.Format("Found: '{0}'", args.Name));
+                Debug($"Found: '{args.Name}'");
             else
-                Warn(string.Format("Not found: '{0}'", args.Name));
+            {
+                Debug($"Not found: '{args.Name}'");
+                
+            }
+               
 
             return result;
         }
@@ -286,7 +236,10 @@ namespace LibZ.Injected
             {
                 var guid = Hash(resourceName);
                 Match match;
-                if (!ResourceNames.TryGetValue(guid, out match)) return null;
+                if (!ResourceNames.TryGetValue(guid, out match))
+                {
+                    return null;
+                }
 
                 lock (LoadedAssemblies)
                 {
@@ -294,7 +247,7 @@ namespace LibZ.Injected
                     if (LoadedAssemblies.TryGetValue(guid, out cached)) return cached;
                 }
 
-                Debug(string.Format("Trying to load '{0}'", resourceName));
+                Debug($"Trying to load '{resourceName}'");
                 resourceName = match.Groups[0].Value;
                 var flags = match.Groups["flags"].Value;
                 var size = int.Parse(match.Groups["size"].Value);
@@ -328,7 +281,7 @@ namespace LibZ.Injected
             }
             catch (Exception e)
             {
-                Error(string.Format("{0}: {1}", e.GetType().Name, e.Message));
+                Error($"{e.GetType().Name}: {e.Message}");
                 return null;
             }
         }
@@ -340,7 +293,7 @@ namespace LibZ.Injected
         /// <returns>Loaded assembly or <c>null</c>.</returns>
         private static Assembly LoadUnmanagedAssembly(string resourceName, Guid guid, byte[] assemblyImage)
         {
-            Debug(string.Format("Trying to load as unmanaged/portable assembly '{0}'", resourceName));
+            Debug($"Trying to load as unmanaged/portable assembly '{resourceName}'");
 
             var folderPath = Path.Combine(
                 Path.GetTempPath(),
@@ -390,9 +343,5 @@ namespace LibZ.Injected
             if (message != null && UseTrace)
                 Trace.TraceError("ERROR (AsmZ/{0}) {1}", ThisAssemblyName, message);
         }
-
-
     }
-
-
 }

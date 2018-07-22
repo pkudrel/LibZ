@@ -18,7 +18,7 @@ Copy-Item "$inDir\*" -destination $testDir -recurse
 Push-Location 
 Set-Location $testDir
 try {
-	& $libz inject-dll -a PkApp.exe -i *.dll --move -b PkApp.exe.config
+	& $libz inject-dll -a PkApp.exe -b PkApp.exe.config -i *.dll --move 
 }
 catch {
 

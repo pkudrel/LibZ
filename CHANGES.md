@@ -1,3 +1,6 @@
+## 1.3.0.0
+- minor bugfixes
+
 ## 1.2.0.0
 - --safe-load option forcing assemblies to be loaded from disk
 - fixes for mono compatibility (still work in progress)

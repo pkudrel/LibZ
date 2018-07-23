@@ -104,6 +104,7 @@ namespace LibZ.Tool.Tasks
 
                 var injectedFileNames = new List<string>();
 
+                var injectedAsmInfos = new StringBuilder();
                 if (string.IsNullOrEmpty(appConfigFile) == false)
                     if (File.Exists(appConfigFile))
                     {
@@ -122,6 +123,9 @@ namespace LibZ.Tool.Tasks
 
                     }
 
+
+               
+
                 foreach (var fileName in FindFiles(includePatterns, excludePatterns))
                 {
                     using (var sourceAssembly = MsilUtilities.LoadAssembly(fileName))
@@ -133,13 +137,32 @@ namespace LibZ.Tool.Tasks
                         }
 
                         Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
-                        if (!InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite))
-                            continue;
+                        var res = InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite);
+                        if (res.Success == false) continue;
+                     
+                        var name =   sourceAssembly.Name.Name;
+                        var version = sourceAssembly.Name.Version;
+                        var hash = Encoding.ASCII.GetString(sourceAssembly.Name.Hash);
+                        var guid = res.Guid;
+                        var key = $"{guid}\t{name}\t{version}\t{hash}";
+                        injectedAsmInfos.AppendLine(key);
                     }
 
                     injectedFileNames.Add(fileName);
                 }
 
+
+                // Inject 
+                if (injectedFileNames.Any())
+                {
+                    var asmBytes = Encoding.UTF8.GetBytes(injectedAsmInfos.ToString());
+                    var added = InjectAsResources(assembly, "injectedAssemblies", assembly.Name.Name, asmBytes,
+                        overwrite);
+                    Log.Debug(added
+                        ? $"Resource '{assembly.Name.Name}' added"
+                        : $"Resource '{assembly.Name.Name}' not added");
+                }
+      
 
                 if (injectedFileNames.Count <= 0)
                 {

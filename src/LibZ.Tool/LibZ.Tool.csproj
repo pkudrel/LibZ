@@ -66,6 +66,7 @@
     <Compile Include="Commands\ListLibraryCommand.cs" />
     <Compile Include="Commands\RebuildCommand.cs" />
     <Compile Include="Commands\SignAndFixCommand.cs" />
+    <Compile Include="Tasks\InjectDllResult.cs" />
     <Compile Include="Tasks\InstrumentLibZTask.cs" />
     <Compile Include="Tasks\InjectDllTask.cs" />
     <Compile Include="Tasks\ListLibraryContentTask.cs" />

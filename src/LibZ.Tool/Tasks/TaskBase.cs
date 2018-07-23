@@ -247,7 +247,7 @@ namespace LibZ.Tool.Tasks
 		/// <returns>
 		///     <c>true</c> if assembly has been injected.
 		/// </returns>
-		protected static bool InjectDll(
+		protected static InjectDllResult InjectDll(
 			AssemblyDefinition targetAssembly,
 			AssemblyDefinition sourceAssembly, byte[] sourceAssemblyBytes,
 			bool overwrite)
@@ -277,9 +277,9 @@ namespace LibZ.Tool.Tasks
 						string.Empty;
 			var guid = Hash(architecturePrefix + sourceAssembly.FullName);
 
-			var resourceName = String.Format(
-				"asmz://{0:N}/{1}/{2}",
-				guid, input.Length, flags);
+		    var guidString = $"{0:N}";
+
+            var resourceName = $"asmz://{guidString}/{input.Length}/{flags}";
 
 			var existing = targetAssembly.MainModule.Resources
 				.Where(r => Hash(r) == guid)
@@ -296,7 +296,7 @@ namespace LibZ.Tool.Tasks
 				else
 				{
 					Log.Warn("Resource '{0}' already exists and will be skipped.", resourceName);
-					return false;
+					return new InjectDllResult(false);
 				}
 			}
 
@@ -307,7 +307,7 @@ namespace LibZ.Tool.Tasks
 
 			targetAssembly.MainModule.Resources.Add(resource);
 
-			return true;
+		    return new InjectDllResult(true, guidString); ;
 		}
 
 

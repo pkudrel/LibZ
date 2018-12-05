@@ -102,7 +102,7 @@ namespace LibZ.Tool.Tasks
 		                ManifestResourceAttributes.Public,
 		                File.ReadAllBytes(libzFileName));
 		            assembly.MainModule.Resources.Add(resource);
-		            Log.Info("Injecting '{0}' into '{1}'", libzFileName, mainFileName);
+		            Log.Info($"Injecting '{libzFileName}' (-) into '{mainFileName}' ");
 		            injectedFileNames.Add(libzFileName);
 		        }
 

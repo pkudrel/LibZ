@@ -88,8 +88,7 @@ namespace LibZ.Tool.Tasks
             bool overwrite, bool move, string appConfigFile)
         {
 
-            Log.Debug($"mainFileName: {mainFileName}");
-
+            
             if (!File.Exists(mainFileName))
                 throw FileNotFound(mainFileName);
 
@@ -97,7 +96,6 @@ namespace LibZ.Tool.Tasks
 
             var keyPair = MsilUtilities.LoadKeyPair(keyFileName, keyFilePassword);
             var tempFileName = $"{mainFileName}.{Guid.NewGuid():N}";
-            Log.Debug($"tempFileName: {tempFileName}");
             using (var assembly = MsilUtilities.LoadAssembly(mainFileName))
             {
                 ValidateAsmZInstrumentation(assembly);
@@ -136,7 +134,7 @@ namespace LibZ.Tool.Tasks
                             continue;
                         }
 
-                        Log.Info("Injecting '{0}' into '{1}'", fileName, mainFileName);
+                        Log.Info($"Injecting '{fileName}' ({sourceAssembly}) into '{mainFileName}'");
                         var res = InjectDll(assembly, sourceAssembly, File.ReadAllBytes(fileName), overwrite);
                         if (res.Success == false) continue;
                      

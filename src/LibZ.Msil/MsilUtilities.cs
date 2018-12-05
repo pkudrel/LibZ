@@ -167,7 +167,7 @@ namespace LibZ.Msil
 			try
 			{
 				var result = AssemblyDefinition.ReadAssembly(assemblyFileName);
-				Log.Debug($"Loaded '{result.FullName}' from file '{assemblyFileName}'" );
+				//Log.Debug($"Loaded '{result.FullName}' from file '{assemblyFileName}'" );
 				return result;
 			}
 			catch
@@ -354,9 +354,6 @@ namespace LibZ.Msil
 				throw new ArgumentException(string.Format(
 					"Assembly '{0}' does not reference any known core assembly. Cannot determine .NET version.", assembly.Name));
 
-		    var ver = references.Select(r => r.Version).Max();
-
-            Log.Debug($"Version: {ver}");
 			return references.Select(r => r.Version).Max();
 		}
 

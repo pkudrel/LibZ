@@ -103,8 +103,8 @@ namespace LibZ.Tool.Tasks
                 ValidateAsmZInstrumentation(assembly);
 
                 var injectedFileNames = new List<string>();
-
                 var injectedAsmInfos = new StringBuilder();
+                var injectedAsmInfosSimple = new List<(string, string, string)>();
                 if (string.IsNullOrEmpty(appConfigFile) == false)
                     if (File.Exists(appConfigFile))
                     {
@@ -145,6 +145,8 @@ namespace LibZ.Tool.Tasks
                         var guid = res.Guid;
                         var key = $"{guid}\t{name}\t{version}";
                         injectedAsmInfos.AppendLine(key);
+                        injectedAsmInfosSimple.Add((name, version.ToString(), guid));
+                        
                     }
 
                     injectedFileNames.Add(fileName);
@@ -164,7 +166,13 @@ namespace LibZ.Tool.Tasks
                         : $"Resource '{itemName}' not added");
                     if (added)
                     {
-                        Log.Debug(injectedAsmInfos);
+                        var max1 = injectedAsmInfosSimple.Max(x => x.Item1.Length) + 3;
+                        var max2 = injectedAsmInfosSimple.Max(x => x.Item2.Length) + 3;
+                        foreach (var t in injectedAsmInfosSimple)
+                        {
+                            Log.Debug($"{t.Item1.PadRight(max1)}{t.Item2.PadRight(max2)}{t.Item3}");
+                        }
+                        Log.Debug(string.Empty);
                     }
                 }
       
@@ -186,6 +194,11 @@ namespace LibZ.Tool.Tasks
             }
 
             MsilUtilities.ReplaceMainFile(mainFileName, tempFileName);
+        }
+        internal class AssemblyInfo
+        {
+            public string Name { get; set; }
+            public string Version { get; set; }
         }
     }
 }

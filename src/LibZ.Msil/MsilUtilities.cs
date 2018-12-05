@@ -166,9 +166,8 @@ namespace LibZ.Msil
 		{
 			try
 			{
-				Log.Debug("Loading '{0}'", assemblyFileName);
 				var result = AssemblyDefinition.ReadAssembly(assemblyFileName);
-				Log.Debug("Loaded '{0}'", result.FullName);
+				Log.Debug($"Loaded '{result.FullName}' from file '{assemblyFileName}'" );
 				return result;
 			}
 			catch
@@ -188,9 +187,8 @@ namespace LibZ.Msil
 
 			try
 			{
-				Log.Debug("Loading assembly from resources");
 				var result = AssemblyDefinition.ReadAssembly(new MemoryStream(bytes));
-				Log.Debug("Loaded '{0}'", result.FullName);
+				Log.Debug("Loaded '{0}' from resources", result.FullName);
 				return result;
 			}
 			catch(Exception e)

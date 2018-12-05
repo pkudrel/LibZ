@@ -106,18 +106,14 @@ namespace LibZ.Tool.InjectIL
 			AssemblyDefinition bootstrapAssembly = null)
 		{
 
-		    Log.Debug($"targetAssembly: {targetAssembly}; bootstrapAssembly: {bootstrapAssembly}");
-
+		    
             var frameworkVersion = MsilUtilities.GetFrameworkVersion(targetAssembly);
 			_sourceAssemblyImage = GetInjectedAssemblyImage(frameworkVersion);
 			_sourceAssembly = MsilUtilities.LoadAssembly(_sourceAssemblyImage);
 
             if (bootstrapAssembly == null)
 			{
-
-			    Log.Debug($"BootstrapAssembly is null: FrameworkVersion: {frameworkVersion}");
                 _bootstrapAssemblyImage = GetBootstrapAssemblyImage(frameworkVersion);
-			    Log.Debug($"_bootstrapAssemblyImage  {_bootstrapAssemblyImage.Length}");
                 _bootstrapAssembly = MsilUtilities.LoadAssembly(_bootstrapAssemblyImage);
 			}
 			else
@@ -133,17 +129,17 @@ namespace LibZ.Tool.InjectIL
 
 			_targetAssembly = targetAssembly;
 
-		    Log.Debug($"_sourceAssembly: {_sourceAssembly}; bootstrapAssembly: {_bootstrapAssembly}");
+		    Log.Debug($"TargetAssembly: {targetAssembly}; BootstrapAssembly: {bootstrapAssembly}");
+
         }
 
-		
-		#region public interface
 
-		/// <summary>Injects the LibZInitializer.</summary>
-		public void InjectLibZInitializer()
+        #region public interface
+
+        /// <summary>Injects the LibZInitializer.</summary>
+        public void InjectLibZInitializer()
 		{
-            Log.Debug("Start InjectLibZInitializer");
-			const string typeName = "LibZ.Injected.LibZInitializer";
+         	const string typeName = "LibZ.Injected.LibZInitializer";
 			var targetType = _targetAssembly.MainModule.Types.SingleOrDefault(t => t.FullName == typeName);
 			if (targetType != null)
 				return;
@@ -179,8 +175,6 @@ namespace LibZ.Tool.InjectIL
 		/// <summary>Injects the AsmZ (embedded dll) resolver.</summary>
 		public void InjectAsmZResolver()
 		{
-
-		    Log.Debug("Start InjectAsmZResolver");
             const string typeLibZInitializer = "LibZ.Injected.LibZInitializer";
 			var initializerType = _targetAssembly.MainModule.Types.Single(t => t.FullName == typeLibZInitializer);
 			var initializerMethod = initializerType.Methods.Single(m => m.Name == "InitializeAsmZ");
@@ -190,7 +184,6 @@ namespace LibZ.Tool.InjectIL
 
 			const string typeAsmZResolver = "LibZ.Injected.AsmZResolver";
 			var sourceType = _sourceAssembly.MainModule.Types.Single(t => t.FullName == typeAsmZResolver);
-            Log.Debug($"Main run; sourceType: {sourceType}; ");
 		    TemplateCopy.Run(_sourceAssembly, _targetAssembly, sourceType, false);
 			var targetType = _targetAssembly.MainModule.Types.Single(t => t.FullName == typeAsmZResolver);
             var targetMethod = targetType.Methods.Single(m => m.Name == "Initialize");

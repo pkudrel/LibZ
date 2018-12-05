@@ -147,8 +147,6 @@ namespace LibZ.Tool.InjectIL
 			AssemblyDefinition from, AssemblyDefinition into, TypeReference type,
 			bool overwrite)
 		{
-
-            Log.Debug($"Run: {from}");
 			var worker = new TemplateCopy(from, into, type, overwrite);
 			worker.Run();
 			return worker.GetExceptions();

@@ -277,7 +277,7 @@ namespace LibZ.Tool.Tasks
 						string.Empty;
 			var guid = Hash(architecturePrefix + sourceAssembly.FullName);
 
-		    var guidString = $"{0:N}";
+		    var guidString = $"{guid:N}";
 
             var resourceName = $"asmz://{guidString}/{input.Length}/{flags}";
 

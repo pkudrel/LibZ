@@ -142,9 +142,8 @@ namespace LibZ.Tool.Tasks
                      
                         var name =   sourceAssembly.Name.Name;
                         var version = sourceAssembly.Name.Version;
-                        var hash = Encoding.ASCII.GetString(sourceAssembly.Name.Hash);
                         var guid = res.Guid;
-                        var key = $"{guid}\t{name}\t{version}\t{hash}";
+                        var key = $"{guid}\t{name}\t{version}";
                         injectedAsmInfos.AppendLine(key);
                     }
 
@@ -152,15 +151,21 @@ namespace LibZ.Tool.Tasks
                 }
 
 
-                // Inject 
+                // Inject info
                 if (injectedFileNames.Any())
                 {
                     var asmBytes = Encoding.UTF8.GetBytes(injectedAsmInfos.ToString());
-                    var added = InjectAsResources(assembly, "injectedAssemblies", assembly.Name.Name, asmBytes,
+                    var itemName = $"{assembly.Name.Name}.txt";
+                    var added = InjectAsResources(assembly, "injectedAssemblies", itemName, asmBytes,
                         overwrite);
+                    Log.Debug(string.Empty);
                     Log.Debug(added
-                        ? $"Resource '{assembly.Name.Name}' added"
-                        : $"Resource '{assembly.Name.Name}' not added");
+                        ? $"Resource '{itemName}' added with info about injected assemblies"
+                        : $"Resource '{itemName}' not added");
+                    if (added)
+                    {
+                        Log.Debug(injectedAsmInfos);
+                    }
                 }
       
 

@@ -62,7 +62,11 @@ namespace LibZ.Injected
             List<(string Name, string PublicKeyToken, string Culture, string oldVersion, string newVersion)>
             DependentAssemblies
                 = new List<(string, string, string, string, string)>();
-
+        // private static readonly List<string> Data = new List<string>() ;
+        private static readonly
+            Dictionary<string, (string Guid, string Name, string Version)>
+            InjectedAssemblies
+                = new Dictionary<string, (string Guid, string Name, string Version)>();
 
         /// <summary>Initializes the <see cref="AsmZResolver" /> class.</summary>
         static AsmZResolver()
@@ -84,8 +88,9 @@ namespace LibZ.Injected
 
             foreach (var rn in ThisAssembly.GetManifestResourceNames())
             {
-               
+
                 if (rn.StartsWith("assemblyBinding://")) ProcessAssemblyBinding(rn);
+                if (rn.StartsWith("injectedAssemblies://")) ProcessInjectedAssemblies(rn);
                 var m = ResourceNameRx.Match(rn);
                 if (!m.Success) continue;
                 var guid = new Guid(m.Groups["guid"].Value);
@@ -98,24 +103,58 @@ namespace LibZ.Injected
             AppDomain.CurrentDomain.AssemblyResolve += AssemblyResolver;
         }
 
-        private static void ProcessAssemblyBinding(string resourceName)
+
+        private static string GetStringFromResource(string resourceName)
         {
-            Info($"ProcessAssemblyBinding; Name: {resourceName}");
+            var ret = string.Empty;
             using (var stream = ThisAssembly.GetManifestResourceStream(resourceName))
             {
                 try
                 {
-                    if (stream == null) return;
+                    if (stream == null) return ret;
                     var buffer = new byte[stream.Length];
                     stream.Read(buffer, 0, buffer.Length);
-                    var result = Encoding.UTF8.GetString(buffer);
-                    ParseDependentAssembly(result);
+                    ret = Encoding.UTF8.GetString(buffer);
+
                 }
                 catch (Exception e)
                 {
                     Error($"result: {e.Message}");
                 }
             }
+
+            return ret;
+        }
+        private static void ProcessAssemblyBinding(string resourceName)
+        {
+            Info($"ProcessAssemblyBinding; Name: {resourceName}");
+            var txt = GetStringFromResource(resourceName);
+            ParseDependentAssembly(txt);
+            Info($"AssemblyBindings; Count: {DependentAssemblies.Count}");
+        }
+
+
+        private static void ProcessInjectedAssemblies(string resourceName)
+        {
+            Info($"ProcessInjectedAssemblies; Name: {resourceName}");
+            var txt = GetStringFromResource(resourceName);
+            ParseInjectedAssemblies(txt);
+            Info($"InjectedAssemblies; Count: {InjectedAssemblies.Count}");
+        }
+
+        public static void ParseInjectedAssemblies(string t)
+        {
+            var lines = t.Split(new [] { System.Environment.NewLine }, StringSplitOptions.None);
+            foreach (var line in lines)
+            {
+                var arr = line.Split('\t');
+                if (arr.Length !=3) continue;
+                if (InjectedAssemblies.ContainsKey(arr[1]) == false)
+                {
+                    InjectedAssemblies.Add(arr[1], (arr[0], arr[1], arr[2]));
+                }
+            }
+           
         }
 
         public static void ParseDependentAssembly(string t)
@@ -210,36 +249,90 @@ namespace LibZ.Injected
             Debug($"Resolving: '{args.Name}'");
 
             var name = args.Name;
-            var result =
-                TryLoadAssembly((IntPtr.Size == 4 ? "x86:" : "x64:") + name) ??
-                TryLoadAssembly(name) ??
-                TryLoadAssembly((IntPtr.Size == 4 ? "x64:" : "x86:") + name);
+            var arr = args.Name.Split(',');
+            var assemblyName = arr[0];
 
-            if (result != null)
-                Debug($"Found: '{args.Name}'");
-            else
+
+            (bool Found, Match Match, Guid Guid) key1;
+
+             key1 = GetResourceKeyStandard((IntPtr.Size == 4 ? "x86:" : "x64:") + name);
+            if (key1.Found == false)
             {
-                Debug($"Not found: '{args.Name}'");
-                
+                key1 = GetResourceKeyStandard(name);
+                if (key1.Found == false)
+                {
+                    key1 = GetResourceKeyStandard((IntPtr.Size == 4 ? "x64:" : "x86:") + name);
+                    if (key1.Found == false)
+                    {
+                        key1 = GetResourceKeyAssemblyName(assemblyName);
+                    }
+                }
             }
-               
+
+
+            Assembly result = null;
+            if (key1.Found)
+            {
+                Debug($"Key found");
+                result = TryLoadAssembly(key1);
+
+                if (result != null)
+                    Debug($"Found: '{args.Name}'");
+                else
+                {
+                    Debug($"Not found: '{args.Name}'");
+
+                }
+            }
+
+           
+
 
             return result;
         }
 
-        /// <summary>Tries the load assembly.</summary>
-        /// <param name="resourceName">Name of the resource.</param>
-        /// <returns>Loaded assembly or <c>null</c>.</returns>
-        private static Assembly TryLoadAssembly(string resourceName)
+
+        private static (bool Found, Match Match, Guid Guid) GetResourceKeyStandard(string resourceName)
+        {
+            Match match;
+            Guid guid = Guid.Empty;
+            guid = Hash(resourceName);
+            if (ResourceNames.TryGetValue(guid, out match))
+            {
+                Debug($"Found by ResourceName; Guid: '{guid}'");
+                return (true, match, guid);
+            }
+
+            return (false, null, Guid.Empty);
+        }
+
+        private static (bool Found, Match Match, Guid Guid) GetResourceKeyAssemblyName(string assemblyName)
+        {
+            Match match;
+        
+            (string Guid, string Name, string Version) info;
+            if (InjectedAssemblies.TryGetValue(assemblyName, out info))
+            {
+                Debug($"Found in InjectedAssemblies; Key: '{assemblyName}'");
+                var newGuid = Guid.Parse(info.Guid);
+                if (ResourceNames.TryGetValue(newGuid, out match))
+                {
+                    Debug($"Found by AssemblyName; Guid: '{newGuid}'");
+                    return (true, match, newGuid);
+                }
+            }
+
+            return (false, null, Guid.Empty);
+        }
+
+
+        private static Assembly TryLoadAssembly((bool Found, Match Match, Guid Guid)  key)
         {
             try
             {
-                var guid = Hash(resourceName);
-                Match match;
-                if (!ResourceNames.TryGetValue(guid, out match))
-                {
-                    return null;
-                }
+                Match match = key.Match;
+                Guid guid = key.Guid;
+               
 
                 lock (LoadedAssemblies)
                 {
@@ -247,8 +340,8 @@ namespace LibZ.Injected
                     if (LoadedAssemblies.TryGetValue(guid, out cached)) return cached;
                 }
 
-                Debug($"Trying to load '{resourceName}'");
-                resourceName = match.Groups[0].Value;
+            
+               var resourceName = match.Groups[0].Value;
                 var flags = match.Groups["flags"].Value;
                 var size = int.Parse(match.Groups["size"].Value);
                 var compressed = flags.Contains("z");
